@@ -8,6 +8,7 @@ from domain.common_db import get_projects, save_diff_to_db
 from domain.db.batches import Batches
 from domain.diff import Patch
 from domain.project import ProjectContext
+from settings import settings
 
 
 class DiffWatcher:
@@ -169,7 +170,10 @@ class DiffWatcher:
     async def start(self):
         while True:
             self.start_once()
-            await asyncio.sleep(60 - datetime.datetime.now().second)
+            # Calculate sleep time to align with the start of the next period
+            current_second = datetime.datetime.now().second
+            sleep_time = settings.DIFF_CHECK_PERIOD_SECONDS - current_second % settings.DIFF_CHECK_PERIOD_SECONDS
+            await asyncio.sleep(sleep_time)
             # await asyncio.sleep(2)
 
     def run(self, context: ProjectContext):

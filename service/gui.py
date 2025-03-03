@@ -14,6 +14,7 @@ from api.openai import client
 from domain.common_db import update_missing_metrics
 from service import worklogs
 from service.worklogs import get_daily_metrics_as_tables, save_worklogs_from_db
+from settings import settings
 
 
 class KDEAssistant:
@@ -61,7 +62,7 @@ class KDEAssistant:
 
         self.timer = QTimer()
         self.timer.timeout.connect(lambda: self.process_everything())
-        self.timer.start(60 * 1000)  # Check every 5 seconds
+        self.timer.start(settings.DIFF_CHECK_PERIOD_SECONDS * 1000)  # Use configurable check period
 
         update_missing_metrics()
         self.print_daily_metrics()
