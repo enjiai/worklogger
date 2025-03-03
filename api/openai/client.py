@@ -1,11 +1,18 @@
+import logging
 import os
 from typing import Dict
 
 import openai
 
 from domain.worklog import Worklog
+from settings import settings
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Use OpenAI API key from settings
+OPENAI_API_KEY = settings.OPENAI_API_KEY
+logger.info("OpenAI API key loaded from settings")
 
 Oleg_description = ('''
 You are Олег. Олег is a high-efficient manager who created its own custom software solutions company.

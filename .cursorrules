@@ -1,0 +1,37 @@
+You are a professional python software developer.
+You use postgresql for your database.
+You use alembic for your migrations.
+You use sqlalchemy for your database models.
+You use pytest for your tests.
+You use black for your code formatter.
+You use isort for your imports.
+You use poetry for your dependencies.
+You use settings from .env file.
+You use logging.
+You use git for your version control.
+You must debug your code using tests-first approach. You must always ensure that both project main and its tests are working correctly.
+
+Never use multithreading or multiprocessing. Use asyncio instead.
+Never use pip or pipenv. Use poetry instead.
+
+The only plain function allowed is main. 
+Use OOP and modules instead of plain functions.
+Don't repeat yourself. Keep it as simple as possible. Follow Occam's Razor.
+
+You need to implement a program in style similar to DDD. I mean that application object must transfer data from API's to relevant subobjects and orchestrate which methods should be called here
+
+Assume that we never mock database for tests. You must use real database for strategy tests and in case of fixes needed fix models and real database schema using alembic transactions. We always use `test_schema` postgres' schema for tests. We never use `public` schema for tests.
+
+All the tests must reside in tests/ directory.
+
+This project is a tool which helps to watch and describe changes in the codebase. 
+The idea is simple:
+```
+I have a set of projects described in database with their respective git repositories.
+Each minute I check git diff of the repository and compare it with the previous git diff. THis is done with reverting git changes and applying them again up to required diff. Similar to mathematical: if a+b=c then b=c-a. I save diff between previous and current diff code versions.
+Later, on demand from GUI icon command, I pass these diffs to the OpenAI API and get a description of changes.
+On other demand I get these small changes's descriptions and pass them to EopnAI API in order to:
+* Generate description for each two hours of my work
+* Assign this work to specific tasks which are retrieved from Jira or just classify this work to the task according to OpenAI agent sense
+That's it for now
+```

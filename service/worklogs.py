@@ -1,3 +1,4 @@
+import logging
 import os
 from copy import deepcopy
 from dataclasses import dataclass
@@ -15,9 +16,12 @@ from domain.common_db import save_worklog, mark_batches_as_processed, select_non
 from domain.db.batches import Batches
 from domain.worklog import Worklog
 from models import SessionLocal, Project, Batch
+from settings import settings
 
-# Configure your OpenAI and Jira credentials
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Working hours configuration
 WORKING_HOURS_START = 13  # 9 AM
 WORKING_HOURS_END = 22  # 5 PM
 
@@ -26,12 +30,13 @@ WORKING_HOURS_END = 22  # 5 PM
 # Jira REST API endpoint for searching issues
 
 # Initialize OpenAI API
-openai.api_key = OPENAI_API_KEY
+openai.api_key = settings.OPENAI_API_KEY
+logger.info("OpenAI API key loaded from settings for worklogs service")
 
 client = openai.OpenAI(
-    api_key=OPENAI_API_KEY,
-    organization=os.getenv('OPENAI_ORGANIZATION'),
-    project=os.getenv('OPENAI_PROJECT'),
+    api_key=settings.OPENAI_API_KEY,
+    organization=settings.OPENAI_ORGANIZATION,
+    project=settings.OPENAI_PROJECT,
 )
 
 

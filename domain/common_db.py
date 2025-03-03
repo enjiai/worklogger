@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Tuple, List
 
 from sqlalchemy import or_
@@ -9,8 +10,14 @@ from domain.project import ProjectContext, ProjectCommit
 from domain.worklog import Worklog
 from models import SessionLocal, Project, ProjectPatch, PatchMetrics, Worklog as DBWorklog, ProjectCommit as DBCommit, \
     AssistantThread, Batch
+from settings import settings
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create database session
 session = SessionLocal()
+logger.info(f"Database session created using {settings.DATABASE_URL}")
 
 PatchMetricsVersion = 2
 

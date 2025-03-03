@@ -1,9 +1,17 @@
+import logging
 import os
 
 from telegram import Update
 from telegram.ext import CommandHandler, MessageHandler, CallbackContext, Application, filters
 
-BOT_TOKEN = os.getenv('TELEGRAM_TOKEN')
+from settings import settings
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Use Telegram token from settings
+BOT_TOKEN = settings.TELEGRAM_TOKEN
+logger.info("Telegram bot token loaded from settings")
 
 
 class CommunicationBot:

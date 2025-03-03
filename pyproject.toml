@@ -19,6 +19,9 @@ pyqt5 = "^5.15.11"
 qasync = "^0.27.1"
 pytz = "^2024.1"
 python-telegram-bot = "^21.4"
+python-dotenv = "^1.0.1"
+asyncpg = "^0.29.0"
+pytest-asyncio = "^0.23.5"
 
 
 [build-system]

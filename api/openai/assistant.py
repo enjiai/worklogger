@@ -1,10 +1,14 @@
 import asyncio
 import enum
+import logging
 import re
 
 from openai import OpenAI
 
-from api.openai.client import OPENAI_API_KEY
+from settings import settings
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class AssistantType(enum.Enum):
@@ -27,10 +31,11 @@ assistant_ids = {
 class ChatGPTAssistant:
     def __init__(self):
         self.client = OpenAI(
-            api_key=OPENAI_API_KEY,
-            organization='org-5BSIHvHSUBcynZRbeEb8JlA3',
-            project='proj_ZtYgjcThjp1ulUrMZUKukn5n',
+            api_key=settings.OPENAI_API_KEY,
+            organization=settings.OPENAI_ORGANIZATION,
+            project=settings.OPENAI_PROJECT,
         )
+        logger.info("OpenAI API initialized for ChatGPT Assistant")
         self.assistant_id = assistant_ids[AssistantType.ATAdvisor]
 
     def create_session(self, system_text, assistant_type: AssistantType, reason):
