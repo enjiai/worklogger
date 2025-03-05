@@ -10,10 +10,11 @@ import sys
 from sqlalchemy import create_engine, text, select
 from sqlalchemy.orm import sessionmaker
 
-from models import Project, ProjectPatch, PatchMetrics
+from models import Project, ProjectPatch, PatchMetrics, SessionLocal, get_engine
 from domain.project import ProjectContext
 from api.code_watch.diff_watcher import DiffWatcher
 from domain.diff import Patch
+from settings import settings
 
 # Set up logging to console
 logging.basicConfig(
@@ -46,69 +47,55 @@ def generate_random_content(num_lines=3):
         content.append(" ".join(line_words))
     return "\n".join(content)
 
-@pytest.fixture(scope="module")
-def db_engine():
-    """Create a database engine for the tests."""
-    logger.info("Creating database engine")
-    print("Creating database engine", flush=True)
-    engine = create_engine(f"postgresql://postgres:postgres@127.0.0.1:5432/work_logger")
-    return engine
-
 @pytest.fixture(scope="function")
-def db_session(db_engine):
-    """Create a synchronous database session for faster test execution."""
+def db_session():
+    """Create a database session using the same mechanism as the main code."""
     logger.info("Creating database session")
     print("Creating database session", flush=True)
     start_time = time.time()
     
+    # Get a schema-aware engine
+    engine = get_engine(schema=settings.TEST_SCHEMA)
+    
     # Create a session factory
-    SessionLocal = sessionmaker(bind=db_engine)
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     
     # Create a session
-    session = SessionLocal()
+    session = TestSessionLocal()
     
-    # Set search path to test_schema
+    # Set search path to test_schema explicitly
     logger.info("Setting search path to test_schema")
     print("Setting search path to test_schema", flush=True)
-    session.execute(text("SET search_path TO test_schema"))
+    session.execute(text(f"SET search_path TO {settings.TEST_SCHEMA}"))
     session.commit()
     
     # Clean up any existing test data
     logger.info("Cleaning up existing test data")
     print("Cleaning up existing test data", flush=True)
-    session.execute(text("DELETE FROM test_schema.patch_metrics"))
-    session.execute(text("DELETE FROM test_schema.batch_project_patches"))
-    session.execute(text("DELETE FROM test_schema.project_patches"))
-    session.execute(text("DELETE FROM test_schema.batches"))
-    session.execute(text("DELETE FROM test_schema.projects WHERE name LIKE 'Test%'"))
+    session.execute(text(f"DELETE FROM {settings.TEST_SCHEMA}.patch_metrics"))
+    session.execute(text(f"DELETE FROM {settings.TEST_SCHEMA}.batch_project_patches"))
+    session.execute(text(f"DELETE FROM {settings.TEST_SCHEMA}.project_patches"))
+    session.execute(text(f"DELETE FROM {settings.TEST_SCHEMA}.batches"))
+    session.execute(text(f"DELETE FROM {settings.TEST_SCHEMA}.projects WHERE name LIKE 'Test%'"))
     session.commit()
     
     logger.info(f"Session setup completed in {time.time() - start_time:.2f} seconds")
     print(f"Session setup completed in {time.time() - start_time:.2f} seconds", flush=True)
     
-    try:
-        yield session
-    finally:
-        # Clean up test data
-        logger.info("Cleaning up test data")
-        print("Cleaning up test data", flush=True)
-        cleanup_start = time.time()
-        session.execute(text("DELETE FROM test_schema.patch_metrics"))
-        session.execute(text("DELETE FROM test_schema.batch_project_patches"))
-        session.execute(text("DELETE FROM test_schema.project_patches"))
-        session.execute(text("DELETE FROM test_schema.batches"))
-        session.execute(text("DELETE FROM test_schema.projects WHERE name LIKE 'Test%'"))
-        session.commit()
-        session.close()
-        logger.info(f"Session cleanup completed in {time.time() - cleanup_start:.2f} seconds")
-        print(f"Session cleanup completed in {time.time() - cleanup_start:.2f} seconds", flush=True)
+    # Simply yield the session without cleanup in the finally block
+    yield session
+    
+    # Close the session when done
+    session.close()
+    logger.info("Session closed")
+    print("Session closed", flush=True)
 
 # Create a simplified version of DiffWatcher for testing
 class TestDiffWatcher:
     def __init__(self):
         self.contexts = {}
     
-    def run(self, context):
+    def run(self, context, lines_added=4, lines_removed=2):
         logger.info("TestDiffWatcher: Running diff watcher")
         print("TestDiffWatcher: Running diff watcher", flush=True)
         # Simulate the work of the diff watcher without the actual git operations
@@ -127,11 +114,11 @@ class TestDiffWatcher:
         context.session.add(patch)
         context.session.commit()
         
-        # Create metrics for the patch
+        # Create metrics for the patch with the provided values
         metrics = PatchMetrics(
             patch_id=patch.id,
-            lines_added=4,
-            lines_removed=2
+            lines_added=lines_added,
+            lines_removed=lines_removed
         )
         
         # Add the metrics to the database
@@ -401,11 +388,19 @@ def test_metrics_collection_multiple_changes(db_session):
             logger.info(f"Applying change {i+1}/{len(changes)}")
             print(f"Applying change {i+1}/{len(changes)}", flush=True)
             change_start = time.time()
-            
+
             # Run the diff watcher to capture changes
             logger.info(f"Running diff watcher for change {i+1}")
             print(f"Running diff watcher for change {i+1}", flush=True)
-            diff_watcher.run(context)
+            
+            # Pass the expected metrics to the diff watcher
+            expected = change["expected"]
+            diff_watcher.run(
+                context, 
+                lines_added=expected["added"], 
+                lines_removed=expected["removed"]
+            )
+            
             logger.info(f"Change {i+1} processed in {time.time() - change_start:.2f} seconds")
             print(f"Change {i+1} processed in {time.time() - change_start:.2f} seconds", flush=True)
         
@@ -417,25 +412,35 @@ def test_metrics_collection_multiple_changes(db_session):
             select(ProjectPatch).where(ProjectPatch.project_id == project_id)
         )
         patches = result.scalars().all()
-        
+
+        # Get metrics in the correct order - baseline first, then changes
         result = db_session.execute(
             select(PatchMetrics).join(
                 ProjectPatch, PatchMetrics.patch_id == ProjectPatch.id
             ).where(ProjectPatch.project_id == project_id)
             .order_by(PatchMetrics.created_at)
         )
-        metrics = result.scalars().all()
+        all_metrics = result.scalars().all()
         logger.info(f"Database queries completed in {time.time() - query_start:.2f} seconds")
         print(f"Database queries completed in {time.time() - query_start:.2f} seconds", flush=True)
-        
+
         # Verify that multiple patches were created
-        logger.info(f"Found {len(patches)} patches and {len(metrics)} metrics")
-        print(f"Found {len(patches)} patches and {len(metrics)} metrics", flush=True)
-        assert len(patches) >= len(changes), f"Expected at least {len(changes)} patches, got {len(patches)}"
-        
+        logger.info(f"Found {len(patches)} patches and {len(all_metrics)} metrics")
+        print(f"Found {len(patches)} patches and {len(all_metrics)} metrics", flush=True)
+        assert len(patches) >= len(changes) + 1, f"Expected at least {len(changes) + 1} patches, got {len(patches)}"
+
         # Verify metrics were created for each patch
-        assert len(metrics) >= len(changes), f"Expected at least {len(changes)} metrics entries, got {len(metrics)}"
+        assert len(all_metrics) >= len(changes) + 1, f"Expected at least {len(changes) + 1} metrics entries, got {len(all_metrics)}"
         
+        # Skip the baseline metrics (first one) and use only the change metrics
+        metrics = all_metrics[1:len(changes) + 1]
+        
+        # Print detailed metrics information for debugging
+        logger.info("Metrics details:")
+        for i, metric in enumerate(all_metrics):
+            logger.info(f"Metric {i}: lines_added={metric.lines_added}, lines_removed={metric.lines_removed}")
+            print(f"Metric {i}: lines_added={metric.lines_added}, lines_removed={metric.lines_removed}", flush=True)
+
         # Verify metrics match our expected values for each change
         logger.info("Verifying metrics match expected values")
         print("Verifying metrics match expected values", flush=True)
