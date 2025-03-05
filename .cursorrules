@@ -8,6 +8,7 @@ You use isort for your imports.
 You use poetry for your dependencies.
 You use settings from .env file.
 You use logging.
+You use psycopg for accessing database.
 You use git for your version control.
 You must debug your code using tests-first approach. You must always ensure that both project main and its tests are working correctly.
 
@@ -21,6 +22,10 @@ Don't repeat yourself. Keep it as simple as possible. Follow Occam's Razor.
 You need to implement a program in style similar to DDD. I mean that application object must transfer data from API's to relevant subobjects and orchestrate which methods should be called here
 
 Assume that we never mock database for tests. You must use real database for strategy tests and in case of fixes needed fix models and real database schema using alembic transactions. We always use `test_schema` postgres' schema for tests. We never use `public` schema for tests.
+
+If current task from user is to work with test, you edit only test files and install libraries used in tests only and it is inappropriate to edit business-logic files. 
+If current task is to work with app, you edit only app files and install libraries used in app only and it is inappropriate to edit test files.
+These rules ensure that you will not mix business-logic and test code. This forbids you to edit files which are not related to the current task. 
 
 All the tests must reside in tests/ directory.
 
@@ -43,5 +48,6 @@ All the e2e tests related to worklog processing must work in the following way:
 - Create test files with some text content in the repository
 - Never add any data directly to database. The only responsible for this - is the project's business logic.
 - Perform necessary outer interaqctions like modifying files in the repository, adding new files, removing files, branch checkouts etc.
+- All the work with text files consists of adding, removing, updating lines with a random words (please predefine a list of 20 simple words) in the repository and checking the results by selecting data from the database.
 - The only way to check the results is to select data from the database and compare it with the expected results.
 - Folllow this restrictions strictly.
