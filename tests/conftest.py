@@ -97,20 +97,7 @@ async def async_engine():
     
     yield engine
     
-    # Clean up after tests
-    async with engine.begin() as conn:
-        # Drop all tables in test_schema after tests
-        logger.info("Cleaning up: dropping all tables in test_schema...")
-        await conn.execute(text("""
-            DO $$ 
-            DECLARE
-                r RECORD;
-            BEGIN
-                FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'test_schema') LOOP
-                    EXECUTE 'DROP TABLE IF EXISTS test_schema.' || quote_ident(r.tablename) || ' CASCADE';
-                END LOOP;
-            END $$;
-        """))
+    # No cleanup after tests - we want to preserve the data
     
     # Reset the schema for the tables back to public
     for table in list(Base.metadata.tables.values()):

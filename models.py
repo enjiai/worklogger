@@ -1,7 +1,7 @@
 import datetime
 import logging
 
-from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, JSON, DateTime, Boolean, MetaData
+from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey, JSON, DateTime, Boolean, MetaData, text
 from sqlalchemy.orm import relationship, sessionmaker, declarative_base, registry
 
 from settings import settings
@@ -220,11 +220,11 @@ def get_engine(schema=None):
     if schema:
         # Set the search path to the specified schema
         with engine.connect() as conn:
-            conn.execute(f"SET search_path TO {schema}")
+            conn.execute(text(f"SET search_path TO {schema}"))
     else:
         # Use the default schema from settings
         with engine.connect() as conn:
-            conn.execute(f"SET search_path TO {settings.DB_SCHEMA}")
+            conn.execute(text(f"SET search_path TO {settings.DB_SCHEMA}"))
     return engine
 
 

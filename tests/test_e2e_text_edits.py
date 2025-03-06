@@ -101,7 +101,11 @@ class TestDiffWatcher:
         # Simulate the work of the diff watcher without the actual git operations
         # This is just for testing the metrics collection
         
-        # Create a simple patch
+        # Create a simple patch with a sample diff that would result in:
+        # - 1 modified line (counts as both 1 add and 1 remove)
+        # - 3 new lines added
+        # - 1 line deleted
+        # Total: 4 lines added, 2 lines removed
         patch = ProjectPatch(
             project_id=context.project.id,
             branch_name="main",
@@ -115,6 +119,8 @@ class TestDiffWatcher:
         context.session.commit()
         
         # Create metrics for the patch with the provided values
+        # In a real diff watcher, these values would be calculated from the patch
+        # Here we allow them to be passed in for testing different scenarios
         metrics = PatchMetrics(
             patch_id=patch.id,
             lines_added=lines_added,
@@ -241,8 +247,8 @@ def test_text_edits_create_patches_and_metrics(db_session):
         metric = metrics[0]
         
         # We expect:
-        # - 4 lines added (1 modified line + 3 new lines)
-        # - 2 lines removed (1 modified line + 1 deleted line)
+        # - 4 lines added (1 modified line counts as 1 add + 3 new lines)
+        # - 2 lines removed (1 modified line counts as 1 remove + 1 deleted line)
         assert metric.lines_added == 4, f"Expected 4 lines added, got {metric.lines_added}"
         assert metric.lines_removed == 2, f"Expected 2 lines removed, got {metric.lines_removed}"
         
@@ -358,9 +364,9 @@ def test_metrics_collection_multiple_changes(db_session):
                     "    return 'test1'",  # New line
                     ""
                 ],
-                "expected": {"added": 3, "removed": 1}  # 2 new lines + 1 modified = 3 added, 1 removed
+                "expected": {"added": 3, "removed": 1}  # 2 new lines + 1 modified line (counts as 1 add) = 3 added, 1 modified line (counts as 1 remove) = 1 removed
             },
-            # Second change: Remove 1 line, add 1 line, modify 1 line
+            # Second change: Remove 1 line, add 2 lines, modify 1 line
             {
                 "content": [
                     "# Python file - Update 2",  # Modified line (1 remove, 1 add)
@@ -377,7 +383,7 @@ def test_metrics_collection_multiple_changes(db_session):
                     "    return 'test2'",  # New line
                     ""
                 ],
-                "expected": {"added": 3, "removed": 2}  # 2 new lines + 1 modified = 3 added, 1 removed + 1 deleted = 2 removed
+                "expected": {"added": 3, "removed": 2}  # 2 new lines + 1 modified line (counts as 1 add) = 3 added, 1 deleted line + 1 modified line (counts as 1 remove) = 2 removed
             }
         ]
         
